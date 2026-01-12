@@ -1,2 +1,0 @@
-/Users/deepakgrandhi/StudioProjects/tradeable_flutter_sdk/example/android/app/.cxx/Debug/z27285k9/arm64-v8a/CMakeFiles/edit_cache.dir
-/Users/deepakgrandhi/StudioProjects/tradeable_flutter_sdk/example/android/app/.cxx/Debug/z27285k9/arm64-v8a/CMakeFiles/rebuild_cache.dir
