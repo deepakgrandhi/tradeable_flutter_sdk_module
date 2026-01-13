@@ -1,158 +1,81 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:tradeable_flutter_sdk/src/ioswrapper/flutter_bridge.dart';
+import 'package:tradeable_flutter_sdk/src/ioswrapper/view_state.dart';
 import 'package:tradeable_flutter_sdk/tradeable_flutter_sdk.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterBridge().initialize();
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  static const MethodChannel _channel = MethodChannel('embedded_flutter');
-  static const MethodChannel _authChannel = MethodChannel('embedded_flutter/auth');
-  static const MethodChannel _navChannel = MethodChannel('embedded_flutter/navigation');
-
-  String displayMode = 'direct';
-  String text = 'Waiting for iOS';
-  double width = 300;
-  double height = 200;
-  int topicId = 6;
-
-  @override
-  void initState() {
-    super.initState();
-    
-    // Handle authentication and TFS initialization
-    _authChannel.setMethodCallHandler((call) async {
-      if (call.method == 'initializeTFS') {
-        final data = Map<String, dynamic>.from(call.arguments);
-        
-        // Initialize TFS if credentials are provided
-        if (data.containsKey('baseUrl') && !TFS().isInitialized) {
-          TFS().initialize(
-            baseUrl: data['baseUrl'],
-          );
-        }
-        
-        // Register app credentials if provided
-        if (data.containsKey('authToken') && 
-            data.containsKey('portalToken') &&
-            data.containsKey('appId') &&
-            data.containsKey('clientId') &&
-            data.containsKey('publicKey')) {
-          TFS().registerApp(
-            authorization: data['authToken'],
-            portalToken: data['portalToken'],
-            appId: data['appId'],
-            clientId: data['clientId'],
-            publicKey: data['publicKey'],
-          );
-        }
-        
-        return true; // Return success
-      }
-    });
-    
-    // Handle legacy setData method for backward compatibility
-    _channel.setMethodCallHandler((call) async {
-      if (call.method == 'setData') {
-        final data = Map<String, dynamic>.from(call.arguments);
-        setState(() {
-          text = data['text'] ?? text;
-          width = (data['width'] ?? width).toDouble();
-          height = (data['height'] ?? height).toDouble();
-          displayMode = data['mode'] ?? displayMode;
-          topicId = data['topicId'] ?? topicId;
-        });
-      }
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        backgroundColor:
-            displayMode == 'fullscreen' ? Colors.white : Colors.transparent,
-        body: _buildContent(),
-      ),
+    final state = FlutterBridge().navHandler.state;
+
+    return AnimatedBuilder(
+      animation: state,
+      builder: (_, __) {
+        return MaterialApp(
+          home: Scaffold(
+            backgroundColor:
+                state.mode == 'fullscreen' ? Colors.white : Colors.transparent,
+            body: _build(state),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildContent() {
-    switch (displayMode) {
+  Widget _build(ViewState state) {
+    switch (state.mode) {
       case 'direct':
-        return _buildDirectView();
+        return _direct(state);
       case 'card':
-        return _buildCardView();
+        return _card(state);
       case 'fullscreen':
-        // Wait for TFS to be initialized before rendering
         if (!TFS().isInitialized) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
-        return TopicDetailPage(topicId: topicId);
+        return TopicDetailPage(topicId: state.topicId);
       default:
-        return _buildDirectView();
+        return _direct(state);
     }
   }
 
-  Widget _buildDirectView() {
+  Widget _direct(ViewState s) {
     return Center(
       child: Container(
-        width: width,
-        height: height,
+        width: s.width,
+        height: s.height,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: Colors.blue.shade100,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(text, style: const TextStyle(fontSize: 18)),
+        child: Text(s.text, style: const TextStyle(fontSize: 18)),
       ),
     );
   }
 
-  Widget _buildCardView() {
+  Widget _card(ViewState s) {
     return GestureDetector(
       onTap: () {
-        _channel.invokeMethod('closeCard');
+        FlutterBridge.base.invokeMethod('closeCard');
       },
       child: Center(
         child: Container(
-          width: width,
-          height: height,
+          width: s.width,
+          height: s.height,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: Colors.green.shade100,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 8,
-                offset: Offset(0, 4),
-              ),
-            ],
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.flip, size: 40, color: Colors.green),
-              const SizedBox(height: 8),
-              Text(text, style: const TextStyle(fontSize: 18)),
-              Text(
-                'Tap to go back',
-                style: TextStyle(fontSize: 14, color: Colors.green.shade700),
-              ),
-            ],
-          ),
+          child: Text(s.text, style: const TextStyle(fontSize: 18)),
         ),
       ),
     );
