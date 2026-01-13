@@ -16,6 +16,8 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   static const MethodChannel _channel = MethodChannel('embedded_flutter');
+  static const MethodChannel _authChannel = MethodChannel('embedded_flutter/auth');
+  static const MethodChannel _navChannel = MethodChannel('embedded_flutter/navigation');
 
   String displayMode = 'direct';
   String text = 'Waiting for iOS';
@@ -26,6 +28,39 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    
+    // Handle authentication and TFS initialization
+    _authChannel.setMethodCallHandler((call) async {
+      if (call.method == 'initializeTFS') {
+        final data = Map<String, dynamic>.from(call.arguments);
+        
+        // Initialize TFS if credentials are provided
+        if (data.containsKey('baseUrl') && !TFS().isInitialized) {
+          TFS().initialize(
+            baseUrl: data['baseUrl'],
+          );
+        }
+        
+        // Register app credentials if provided
+        if (data.containsKey('authToken') && 
+            data.containsKey('portalToken') &&
+            data.containsKey('appId') &&
+            data.containsKey('clientId') &&
+            data.containsKey('publicKey')) {
+          TFS().registerApp(
+            authorization: data['authToken'],
+            portalToken: data['portalToken'],
+            appId: data['appId'],
+            clientId: data['clientId'],
+            publicKey: data['publicKey'],
+          );
+        }
+        
+        return true; // Return success
+      }
+    });
+    
+    // Handle legacy setData method for backward compatibility
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'setData') {
         final data = Map<String, dynamic>.from(call.arguments);
@@ -58,6 +93,12 @@ class _MyAppState extends State<MyApp> {
       case 'card':
         return _buildCardView();
       case 'fullscreen':
+        // Wait for TFS to be initialized before rendering
+        if (!TFS().isInitialized) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
         return TopicDetailPage(topicId: topicId);
       default:
         return _buildDirectView();
