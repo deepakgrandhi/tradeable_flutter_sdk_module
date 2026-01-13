@@ -4,32 +4,6 @@ import 'package:tradeable_flutter_sdk/tradeable_flutter_sdk.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  const authChannel = MethodChannel('embedded_flutter/auth');
-  authChannel.setMethodCallHandler((call) async {
-    if (call.method == 'initializeTFS') {
-      final baseUrl = call.arguments['baseUrl'];
-      final authToken = call.arguments['authToken'];
-      final portalToken = call.arguments['portalToken'];
-      final appId = call.arguments['appId'];
-      final clientId = call.arguments['clientId'];
-      final publicKey = call.arguments['publicKey'];
-
-      TFS().initialize(
-        baseUrl: baseUrl,
-        theme: AppTheme.lightTheme(),
-        onEvent: (String eventName, Map<String, dynamic>? data) {},
-        onTokenExpiration: () async {
-          TFS().registerApp(
-            authorization: authToken,
-            portalToken: portalToken,
-            appId: appId,
-            clientId: clientId,
-            publicKey: publicKey,
-          );
-        },
-      );
-    }
-  });
   runApp(const MyApp());
 }
 
@@ -47,6 +21,7 @@ class _MyAppState extends State<MyApp> {
   String text = 'Waiting for iOS';
   double width = 300;
   double height = 200;
+  int topicId = 6;
 
   @override
   void initState() {
@@ -59,6 +34,7 @@ class _MyAppState extends State<MyApp> {
           width = (data['width'] ?? width).toDouble();
           height = (data['height'] ?? height).toDouble();
           displayMode = data['mode'] ?? displayMode;
+          topicId = data['topicId'] ?? topicId;
         });
       }
     });
@@ -82,7 +58,7 @@ class _MyAppState extends State<MyApp> {
       case 'card':
         return _buildCardView();
       case 'fullscreen':
-        return LearnDashboard();
+        return TopicDetailPage(topicId: topicId);
       default:
         return _buildDirectView();
     }
