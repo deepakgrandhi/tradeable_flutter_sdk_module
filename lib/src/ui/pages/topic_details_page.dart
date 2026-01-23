@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:tradeable_flutter_sdk/src/ioswrapper/flutter_bridge.dart';
 import 'package:tradeable_flutter_sdk/src/models/topic_user_model.dart';
 import 'package:tradeable_flutter_sdk/src/models/user_widgets_model.dart';
 import 'package:tradeable_flutter_sdk/src/network/api.dart';
@@ -51,8 +52,10 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
     setState(() {
       _loading = true;
     });
-    final topic =
-        await API().fetchTopicById(widget.topicId!, moduleId: widget.courseId);
+    final topic = await API().fetchTopicById(
+      widget.topicId!,
+      moduleId: widget.courseId,
+    );
     _topicUserModel = TopicUserModel.fromTopic(topic);
     flowId = _topicUserModel!.startFlow;
     if (flowId == null) {
@@ -65,15 +68,19 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
 
   Future<void> getFlows() async {
     if (_topicUserModel == null) return;
-    final val = await API().fetchTopicById(_topicUserModel!.topicId,
-        topicTagId: _topicUserModel!.topicContextType != null &&
-                _topicUserModel!.topicContextType == TopicContextType.tag
-            ? _topicUserModel!.topicContextId
-            : null,
-        moduleId: _topicUserModel!.topicContextType != null &&
-                _topicUserModel!.topicContextType == TopicContextType.course
-            ? _topicUserModel!.topicContextId
-            : null);
+    final val = await API().fetchTopicById(
+      _topicUserModel!.topicId,
+      topicTagId:
+          _topicUserModel!.topicContextType != null &&
+                  _topicUserModel!.topicContextType == TopicContextType.tag
+              ? _topicUserModel!.topicContextId
+              : null,
+      moduleId:
+          _topicUserModel!.topicContextType != null &&
+                  _topicUserModel!.topicContextType == TopicContextType.course
+              ? _topicUserModel!.topicContextId
+              : null,
+    );
     setState(() {
       flowId ??= val.flows!.first.id;
       completedFlows = (val.flows ?? []).where((f) => f.isCompleted).length;
@@ -84,6 +91,14 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
         isExpanded = true;
       });
     });
+  }
+
+  void _handleBackButton() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      FlutterBridge.base.invokeMethod('closeCard');
+    }
   }
 
   @override
@@ -99,40 +114,43 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
     }
 
     return Scaffold(
-        backgroundColor: widget.topic?.cardColor ?? Color(0xffF9F1EB),
-        appBar: renderAppBar(),
-        body: SafeArea(
-          child: WidgetPage(
-              topicUserModel: _topicUserModel,
-              flowId: flowId ?? -1,
-              onMenuClick: () {
-                updateFlowComplete();
-                showModalBottomSheet(
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  barrierColor: Colors.black.withAlpha((0.3 * 255).round()),
-                  context: context,
-                  builder: (context) {
-                    return BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: 100,
-                          maxHeight: MediaQuery.of(context).size.height * 0.8,
-                        ),
-                        child: FlowsBottomSheet(
-                          topic: _topicUserModel!,
-                          onFlowItemClicked: (id) => setState(() {
+      backgroundColor: widget.topic?.cardColor ?? Color(0xffF9F1EB),
+      appBar: renderAppBar(),
+      body: SafeArea(
+        child: WidgetPage(
+          topicUserModel: _topicUserModel,
+          flowId: flowId ?? -1,
+          onMenuClick: () {
+            updateFlowComplete();
+            showModalBottomSheet(
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              barrierColor: Colors.black.withAlpha((0.3 * 255).round()),
+              context: context,
+              builder: (context) {
+                return BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: 100,
+                      maxHeight: MediaQuery.of(context).size.height * 0.8,
+                    ),
+                    child: FlowsBottomSheet(
+                      topic: _topicUserModel!,
+                      onFlowItemClicked:
+                          (id) => setState(() {
                             flowId = id;
                           }),
-                          completedFlowId: flowId ?? -1,
-                        ),
-                      ),
-                    );
-                  },
+                      completedFlowId: flowId ?? -1,
+                    ),
+                  ),
                 );
-              }),
-        ));
+              },
+            );
+          },
+        ),
+      ),
+    );
   }
 
   PreferredSizeWidget renderAppBar() {
@@ -146,35 +164,37 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
         alignment: Alignment.topLeft,
         child: IconButton(
           icon: Icon(Icons.arrow_back, size: 24),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _handleBackButton,
         ),
       ),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(_topicUserModel?.name ?? "",
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            _topicUserModel?.name ?? "",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           _topicUserModel != null
               ? Row(
-                  children: [
-                    SizedBox(
-                      width: 100,
-                      child: LinearProgressIndicator(
-                        borderRadius: BorderRadius.circular(12),
-                        minHeight: 6,
-                        color: colors.progressIndColor1,
-                        backgroundColor: colors.progressIndColor2,
-                        value: completedFlows / totalFlows,
-                      ),
+                children: [
+                  SizedBox(
+                    width: 100,
+                    child: LinearProgressIndicator(
+                      borderRadius: BorderRadius.circular(12),
+                      minHeight: 6,
+                      color: colors.progressIndColor1,
+                      backgroundColor: colors.progressIndColor2,
+                      value: completedFlows / totalFlows,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '$completedFlows/$totalFlows ${completedFlows == totalFlows ? "Ongoing..." : "Completed"}',
-                      style: TextStyle(fontSize: 10, color: Colors.black),
-                    ),
-                  ],
-                )
-              : Container()
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$completedFlows/$totalFlows ${completedFlows == totalFlows ? "Ongoing..." : "Completed"}',
+                    style: TextStyle(fontSize: 10, color: Colors.black),
+                  ),
+                ],
+              )
+              : Container(),
         ],
       ),
       actions: [
@@ -182,8 +202,9 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
           margin: const EdgeInsets.all(8),
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: colors.borderColorSecondary)),
+            shape: BoxShape.circle,
+            border: Border.all(color: colors.borderColorSecondary),
+          ),
           child: InkWell(
             onTap: () {
               showModalBottomSheet(
@@ -201,9 +222,10 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
                       ),
                       child: FlowsBottomSheet(
                         topic: _topicUserModel!,
-                        onFlowItemClicked: (id) => setState(() {
-                          flowId = id;
-                        }),
+                        onFlowItemClicked:
+                            (id) => setState(() {
+                              flowId = id;
+                            }),
                         completedFlowId: -1,
                       ),
                     ),
@@ -212,9 +234,10 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
               );
             },
             child: SvgPicture.asset(
-                "packages/tradeable_flutter_sdk/lib/assets/images/dashboard_menu.svg"),
+              "packages/tradeable_flutter_sdk/lib/assets/images/dashboard_menu.svg",
+            ),
           ),
-        )
+        ),
       ],
     );
   }
@@ -222,16 +245,17 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
   void updateFlowComplete() async {
     await API()
         .markFlowAsCompleted(
-            flowId ?? 0,
-            _topicUserModel?.topicId,
-            _topicUserModel?.topicContextType == TopicContextType.tag
-                ? _topicUserModel?.topicContextId
-                : null,
-            _topicUserModel?.topicContextType == TopicContextType.course
-                ? _topicUserModel?.topicContextId
-                : null)
+          flowId ?? 0,
+          _topicUserModel?.topicId,
+          _topicUserModel?.topicContextType == TopicContextType.tag
+              ? _topicUserModel?.topicContextId
+              : null,
+          _topicUserModel?.topicContextType == TopicContextType.course
+              ? _topicUserModel?.topicContextId
+              : null,
+        )
         .then((val) {
-      getFlows();
-    });
+          getFlows();
+        });
   }
 }
